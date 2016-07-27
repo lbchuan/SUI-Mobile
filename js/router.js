@@ -1,4 +1,3 @@
-
 /**
  * 路由
  *
@@ -187,13 +186,13 @@
 
     $.load = function () {
         // 判断页面中是否有page-group
-        if ($('.' + routerConfig.sectionGroupClass)[0]){
+        if ($('.' + routerConfig.sectionGroupClass)[0]) {
             // 存在，则直接初始化
             $.init();
-        } else{
+        } else {
             // 不存在，则加载页面
             // console.log(Util.toUrlObject(window.location.href))
-            $(function(){
+            $(function () {
                 $.router.load(window.location.href, true, true, 'none');
             });
         }
@@ -230,7 +229,7 @@
         this.cache = {};
         var $doc = $(document);
         var $curVisibleSection = $doc.find('.' + routerConfig.pageClass).eq(0);
-        if (!$curVisibleSection[0]){
+        if (!$curVisibleSection[0]) {
             return;
         }
 
@@ -413,10 +412,10 @@
             this.xhr.onreadystatechange = function () {
             };
             this.xhr.abort();
-            this.dispatch(EVENTS.pageLoadCancel, {details:{options:{url:url}}});
+            this.dispatch(EVENTS.pageLoadCancel, {detail: {options: {url: url}}});
         }
 
-        this.dispatch(EVENTS.pageLoadStart, {details:{options:{url:url}}});
+        this.dispatch(EVENTS.pageLoadStart, {detail: {options: {url: url}}});
 
         callback = callback || {};
         var self = this;
@@ -431,11 +430,11 @@
             }, this),
             error: function (xhr, status, err) {
                 callback.error && callback.error.call(null, xhr, status, err);
-                self.dispatch(EVENTS.pageLoadError, {details:{options:{url:url}}});
+                self.dispatch(EVENTS.pageLoadError, {detail: {options: {url: url}}});
             },
             complete: function (xhr, status) {
                 callback.complete && callback.complete.call(null, xhr, status);
-                self.dispatch(EVENTS.pageLoadComplete, {details:{options:{url:url}}});
+                self.dispatch(EVENTS.pageLoadComplete, {detail: {options: {url: url}}});
             }
         });
     };
@@ -524,13 +523,13 @@
 
         $visibleSection.trigger(EVENTS.pageAnimationStart, [sectionId, $visibleSection]);
 
-        if (direction == 'none'){
+        if (direction == 'none') {
             callback && callback();
             $visibleSectionInFrom.removeClass(routerConfig.visiblePageClass);
             $visibleSection.trigger(EVENTS.pageAnimationEnd, [sectionId, $visibleSection]);
             // 外层（init.js）中会绑定 pageInitInternal 事件，然后对页面进行初始化
             $visibleSection.trigger(EVENTS.pageInit, [sectionId, $visibleSection]);
-        } else{
+        } else {
             this._animateElement($from, $to, direction);
             $from.animationEnd(function () {
                 $visibleSectionInFrom.removeClass(routerConfig.visiblePageClass);
@@ -617,7 +616,7 @@
      */
     Router.prototype._back = function (state, fromState) {
         var $groups = this.$view.find('.' + routerConfig.sectionGroupClass);
-        if ($groups.length == 1){
+        if ($groups.length == 1) {
             // no more back
             return;
         }
@@ -641,14 +640,14 @@
     Router.prototype._doRemoveDocument = function (direction) {
         var $groups = this.$view.find('.' + routerConfig.sectionGroupClass);
         var $currentDoc = $groups.last();
-        var $oldDoc = $groups.eq($groups.length -2);
+        var $oldDoc = $groups.eq($groups.length - 2);
         var $visibleSection = $oldDoc.find('.' + routerConfig.pageClass).eq(0);
         var $currentSection = this._getCurrentSection();
         $currentSection[0] && $currentSection.trigger(EVENTS.beforePageSwitch, [$currentSection.data('id'), $currentSection]);
 
         $visibleSection.addClass(routerConfig.curPageClass);
 
-        this._animateDocument($currentDoc, $oldDoc, $visibleSection, direction, function(){
+        this._animateDocument($currentDoc, $oldDoc, $visibleSection, direction, function () {
             $(window).trigger(EVENTS.beforePageRemove, [$currentSection.data('id'), $currentDoc]);
             $currentDoc.remove();
             $(window).trigger(EVENTS.pageRemoved);
