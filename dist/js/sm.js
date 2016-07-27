@@ -6583,7 +6583,8 @@ Device/OS Detection
         beforePageRemove: 'beforePageRemove', // 移除旧 document 前（适用于非内联 page 切换）
         pageRemoved: 'pageRemoved', // 移除旧 document 后（适用于非内联 page 切换）
         beforePageSwitch: 'beforePageSwitch', // page 切换前，在 pageAnimationStart 前，beforePageSwitch 之后会做一些额外的处理才触发 pageAnimationStart
-        pageInit: 'pageInitInternal' // 目前是定义为一个 page 加载完毕后（实际和 pageAnimationEnd 等同）
+        pageInit: 'pageInitInternal', // 目前是定义为一个 page 加载完毕后（实际和 pageAnimationEnd 等同）
+        domLoaded: 'domLoaded' // 目前是定义为一个 page 插入dom后（实际和 pageAnimationStart 等同）
     };
 
     var Util = {
@@ -6846,6 +6847,22 @@ Device/OS Detection
         var curPageId = this._generateRandomId();
         $visibleSection.addClass(curPageId, routerConfig.curPageClass);
         $visibleSection.data('id', curPageId);
+        // 添加query参数到dom中
+        var query = {};
+        if (url.indexOf('?') != -1) {
+            var start = url.indexOf('?'),
+                end = url.indexOf('#');
+            if (end == -1) {
+                end = url.length;
+            }
+            var querys = url.substring(start + 1, end).split('&');
+            for (var i = 0; i < querys.length; i++) {
+                var item = querys[i].split('=');
+                query[item[0]] = item[1];
+            }
+        }
+        $visibleSection.data('query', query);
+        $visibleSection.trigger(EVENTS.domLoaded, [curPageId, $visibleSection]);
 
         var $currentSection = this._getCurrentSection();
         $currentSection[0] && $currentSection.trigger(EVENTS.beforePageSwitch, [$currentSection.data('id'), $currentSection]);
@@ -7147,7 +7164,7 @@ Device/OS Detection
         $visibleSection.addClass(routerConfig.curPageClass);
 
         this._animateDocument($currentDoc, $oldDoc, $visibleSection, direction, function () {
-            $(window).trigger(EVENTS.beforePageRemove, [$currentSection.data('id'), $currentDoc]);
+            $currentSection.trigger(EVENTS.beforePageRemove, [$currentSection.data('id'), $currentSection]);
             $currentDoc.remove();
             $(window).trigger(EVENTS.pageRemoved);
         });
