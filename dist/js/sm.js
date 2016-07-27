@@ -6497,6 +6497,7 @@ Device/OS Detection
     $.initSwipePanels();
 }(Zepto);
 
+
 /**
  * 路由
  *
@@ -6559,12 +6560,12 @@ Device/OS Detection
  * 注: 以 _ 开头的函数标明用于此处内部使用，可根据需要随时重构变更，不对外确保兼容性。
  *
  */
-+function($) {
++function ($) {
     'use strict';
 
     if (!window.CustomEvent) {
-        window.CustomEvent = function(type, config) {
-            config = config || { bubbles: false, cancelable: false, detail: undefined};
+        window.CustomEvent = function (type, config) {
+            config = config || {bubbles: false, cancelable: false, detail: undefined};
             var e = document.createEvent('CustomEvent');
             e.initCustomEvent(type, config.bubbles, config.cancelable, config.detail);
             return e;
@@ -6596,7 +6597,7 @@ Device/OS Detection
          * @param {String} url url
          * @returns {String}
          */
-        getUrlFragment: function(url) {
+        getUrlFragment: function (url) {
             var hashIndex = url.indexOf('#');
             return hashIndex === -1 ? '' : url.slice(hashIndex + 1);
         },
@@ -6613,7 +6614,7 @@ Device/OS Detection
          * @param {String} url url
          * @returns {String}
          */
-        getAbsoluteUrl: function(url) {
+        getAbsoluteUrl: function (url) {
             var link = document.createElement('a');
             link.setAttribute('href', url);
             var absoluteUrl = link.href;
@@ -6626,7 +6627,7 @@ Device/OS Detection
          * @param {String} url url
          * @returns {String}
          */
-        getBaseUrl: function(url) {
+        getBaseUrl: function (url) {
             var hashIndex = url.indexOf('#');
             return hashIndex === -1 ? url.slice(0) : url.slice(0, hashIndex);
         },
@@ -6636,7 +6637,7 @@ Device/OS Detection
          * @param {String} url url
          * @returns {UrlObject}
          */
-        toUrlObject: function(url) {
+        toUrlObject: function (url) {
             var fullUrl = this.getAbsoluteUrl(url),
                 baseUrl = this.getBaseUrl(fullUrl),
                 fragment = this.getUrlFragment(url);
@@ -6652,13 +6653,13 @@ Device/OS Detection
          * 判断浏览器是否支持 sessionStorage，支持返回 true，否则返回 false
          * @returns {Boolean}
          */
-        supportStorage: function() {
+        supportStorage: function () {
             var mod = 'sm.router.storage.ability';
             try {
                 sessionStorage.setItem(mod, mod);
                 sessionStorage.removeItem(mod);
                 return true;
-            } catch(e) {
+            } catch (e) {
                 return false;
             }
         }
@@ -6683,7 +6684,21 @@ Device/OS Detection
 
     var theHistory = window.history;
 
-    var Router = function() {
+    $.load = function () {
+        // 判断页面中是否有page-group
+        if ($('.' + routerConfig.sectionGroupClass)[0]){
+            // 存在，则直接初始化
+            $.init();
+        } else{
+            // 不存在，则加载页面
+            // console.log(Util.toUrlObject(window.location.href))
+            $(function(){
+                $.router.load(window.location.href, true, true, 'none');
+            });
+        }
+    }
+
+    var Router = function () {
         this.sessionNames = {
             currentState: 'sm.router.currentState',
             maxStateId: 'sm.router.maxStateId'
@@ -6706,61 +6721,39 @@ Device/OS Detection
      *
      * @private
      */
-    Router.prototype._init = function() {
+    Router.prototype._init = function () {
 
         this.$view = $('body');
 
         // 用来保存 document 的 map
         this.cache = {};
         var $doc = $(document);
-        var currentUrl = location.href;
-        this._saveDocumentIntoCache($doc, currentUrl);
-
-        var curPageId;
-
-        var currentUrlObj = Util.toUrlObject(currentUrl);
-        var $allSection = $doc.find('.' + routerConfig.pageClass);
-        var $visibleSection = $doc.find('.' + routerConfig.curPageClass);
-        var $curVisibleSection = $visibleSection.eq(0);
-        var $hashSection;
-
-        if (currentUrlObj.fragment) {
-            $hashSection = $doc.find('#' + currentUrlObj.fragment);
-        }
-        if ($hashSection && $hashSection.length) {
-            $visibleSection = $hashSection.eq(0);
-        } else if (!$visibleSection.length) {
-            $visibleSection = $allSection.eq(0);
-        }
-        if (!$visibleSection.attr('id')) {
-            $visibleSection.attr('id', this._generateRandomId());
+        var $curVisibleSection = $doc.find('.' + routerConfig.pageClass).eq(0);
+        if (!$curVisibleSection[0]){
+            return;
         }
 
-        if ($curVisibleSection.length &&
-            ($curVisibleSection.attr('id') !== $visibleSection.attr('id'))) {
-            // 在 router 到 inner page 的情况下，刷新（或者直接访问该链接）
-            // 直接切换 class 会有「闪」的现象,或许可以采用 animateSection 来减缓一下
-            $curVisibleSection.removeClass(routerConfig.curPageClass);
-            $visibleSection.addClass(routerConfig.curPageClass);
-        } else {
-            $visibleSection.addClass(routerConfig.curPageClass);
-        }
-        curPageId = $visibleSection.attr('id');
-
-
-        // 新进入一个使用 history.state 相关技术的页面时，如果第一个 state 不 push/replace,
-        // 那么在后退回该页面时，将不触发 popState 事件
-        if (theHistory.state === null) {
-            var curState = {
-                id: this._getNextStateId(),
-                url: Util.toUrlObject(currentUrl),
-                pageId: curPageId
-            };
-
-            theHistory.replaceState(curState, '', currentUrl);
-            this._saveAsCurrentState(curState);
-            this._incMaxStateId();
-        }
+        // var currentUrl = location.href;
+        // // 缓存整个group的dom
+        // this._saveDocumentIntoCache($doc, currentUrl);
+        // // add unique class
+        // var curPageId = this._generateRandomId();
+        // $curVisibleSection.addClass(curPageId, routerConfig.curPageClass);
+        // $curVisibleSection.data('id', curPageId);
+        //
+        // // 新进入一个使用 history.state 相关技术的页面时，如果第一个 state 不 push/replace,
+        // // 那么在后退回该页面时，将不触发 popState 事件
+        // if (theHistory.state === null) {
+        //     var curState = {
+        //         id: this._getNextStateId(),
+        //         url: Util.toUrlObject(currentUrl),
+        //         pageId: curPageId
+        //     };
+        //
+        //     theHistory.replaceState(curState, '', currentUrl);
+        //     this._saveAsCurrentState(curState);
+        //     this._incMaxStateId();
+        // }
     };
 
     /**
@@ -6772,65 +6765,19 @@ Device/OS Detection
      * @param {String} url url
      * @param {Boolean=} ignoreCache 是否强制请求不使用缓存，对 document 生效，默认是 false
      */
-    Router.prototype.load = function(url, ignoreCache) {
+    Router.prototype.load = function (url, ignoreCache, ignoreSame, direction) {
         if (ignoreCache === undefined) {
             ignoreCache = false;
         }
+        if (ignoreSame === undefined) {
+            ignoreSame = false;
+        }
 
-        if (this._isTheSameDocument(location.href, url)) {
-            this._switchToSection(Util.getUrlFragment(url));
+        if (!ignoreSame && this._isTheSameDocument(location.href, url)) {
+            return;
         } else {
-            this._saveDocumentIntoCache($(document), location.href);
-            this._switchToDocument(url, ignoreCache);
+            this._load(url, ignoreCache, true, direction);
         }
-    };
-
-    /**
-     * 调用 history.forward()
-     */
-    Router.prototype.forward = function() {
-        theHistory.forward();
-    };
-
-    /**
-     * 调用 history.back()
-     */
-    Router.prototype.back = function() {
-        theHistory.back();
-    };
-
-    //noinspection JSUnusedGlobalSymbols
-    /**
-     * @deprecated
-     */
-    Router.prototype.loadPage = Router.prototype.load;
-
-    /**
-     * 切换显示当前文档另一个块
-     *
-     * 把新块从右边切入展示，同时会把新的块的记录用 history.pushState 来保存起来
-     *
-     * 如果已经是当前显示的块，那么不做任何处理；
-     * 如果没对应的块，那么忽略。
-     *
-     * @param {String} sectionId 待切换显示的块的 id
-     * @private
-     */
-    Router.prototype._switchToSection = function(sectionId) {
-        if (!sectionId) {
-            return;
-        }
-
-        var $curPage = this._getCurrentSection(),
-            $newPage = $('#' + sectionId);
-
-        // 如果已经是当前页，不做任何处理
-        if ($curPage === $newPage) {
-            return;
-        }
-
-        this._animateSection($curPage, $newPage, DIRECTION.rightToLeft);
-        this._pushNewState('#' + sectionId, sectionId);
     };
 
     /**
@@ -6849,7 +6796,7 @@ Device/OS Detection
      * @param {String=} direction 新文档切入的方向
      * @private
      */
-    Router.prototype._switchToDocument = function(url, ignoreCache, isPushState, direction) {
+    Router.prototype._load = function (url, ignoreCache, isPushState, direction) {
         var baseUrl = Util.toUrlObject(url).base;
 
         if (ignoreCache) {
@@ -6860,19 +6807,14 @@ Device/OS Detection
         var context = this;
 
         if (cacheDocument) {
-            this._doSwitchDocument(url, isPushState, direction);
+            this._doSwitchDocument(baseUrl, cacheDocument, isPushState, direction);
         } else {
-            this._loadDocument(url, {
-                success: function($doc) {
-                    try {
-                        context._parseDocument(url, $doc);
-                        context._doSwitchDocument(url, isPushState, direction);
-                    } catch (e) {
-                        location.href = url;
-                    }
-                },
-                error: function() {
-                    location.href = url;
+            this._loadDocument(baseUrl, {
+                success: function ($doc) {
+                    // cache the dom
+                    context.cache[baseUrl] = $doc;
+                    context._parseDocumentTest(baseUrl, $doc);
+                    context._doSwitchDocument(baseUrl, $doc, isPushState, direction);
                 }
             });
         }
@@ -6891,50 +6833,45 @@ Device/OS Detection
      * @param {String} direction 动画切换方向，默认是 DIRECTION.rightToLeft
      * @private
      */
-    Router.prototype._doSwitchDocument = function(url, isPushState, direction) {
+    Router.prototype._doSwitchDocument = function (url, $doc, isPushState, direction) {
         if (typeof isPushState === 'undefined') {
             isPushState = true;
         }
 
-        var urlObj = Util.toUrlObject(url);
-        var $currentDoc = this.$view.find('.' + routerConfig.sectionGroupClass);
-        var $newDoc = $($('<div></div>').append(this.cache[urlObj.base].$content).html());
+        var $currentDoc = this.$view.find('.' + routerConfig.sectionGroupClass).last();
+        // 复制一份html，插入
+        var $newDoc = $($doc.html());
+        this.$view.append($newDoc);
 
-        // 确定一个 document 展示 section 的顺序
-        // 1. 与 hash 关联的 element
-        // 2. 默认的标识为 current 的 element
-        // 3. 第一个 section
-        var $allSection = $newDoc.find('.' + routerConfig.pageClass);
-        var $visibleSection = $newDoc.find('.' + routerConfig.curPageClass);
-        var $hashSection;
-
-        if (urlObj.fragment) {
-            $hashSection = $newDoc.find('#' + urlObj.fragment);
-        }
-        if ($hashSection && $hashSection.length) {
-            $visibleSection = $hashSection.eq(0);
-        } else if (!$visibleSection.length) {
-            $visibleSection = $allSection.eq(0);
-        }
-        if (!$visibleSection.attr('id')) {
-            $visibleSection.attr('id', this._generateRandomId());
-        }
+        var $visibleSection = $newDoc.find('.' + routerConfig.pageClass).eq(0);
+        var curPageId = this._generateRandomId();
+        $visibleSection.addClass(curPageId, routerConfig.curPageClass);
+        $visibleSection.data('id', curPageId);
 
         var $currentSection = this._getCurrentSection();
-        $currentSection.trigger(EVENTS.beforePageSwitch, [$currentSection.attr('id'), $currentSection]);
+        $currentSection[0] && $currentSection.trigger(EVENTS.beforePageSwitch, [$currentSection.data('id'), $currentSection]);
 
-        $allSection.removeClass(routerConfig.curPageClass);
         $visibleSection.addClass(routerConfig.curPageClass);
-
-        // prepend 而不 append 的目的是避免 append 进去新的 document 在后面，
-        // 其里面的默认展示的(.page-current) 的页面直接就覆盖了原显示的页面（因为都是 absolute）
-        this.$view.prepend($newDoc);
 
         this._animateDocument($currentDoc, $newDoc, $visibleSection, direction);
 
         if (isPushState) {
-            this._pushNewState(url, $visibleSection.attr('id'));
+            this._pushNewState(url, curPageId);
         }
+    };
+
+    /**
+     * 调用 history.forward()
+     */
+    Router.prototype.forward = function () {
+        theHistory.forward();
+    };
+
+    /**
+     * 调用 history.back()
+     */
+    Router.prototype.back = function () {
+        theHistory.back();
     };
 
     /**
@@ -6947,7 +6884,7 @@ Device/OS Detection
      * @returns {Boolean}
      * @private
      */
-    Router.prototype._isTheSameDocument = function(url, anotherUrl) {
+    Router.prototype._isTheSameDocument = function (url, anotherUrl) {
         return Util.toUrlObject(url).base === Util.toUrlObject(anotherUrl).base;
     };
 
@@ -6970,9 +6907,9 @@ Device/OS Detection
      *
      * @private
      */
-    Router.prototype._loadDocument = function(url, callback) {
+    Router.prototype._loadDocument = function (url, callback) {
         if (this.xhr && this.xhr.readyState < 4) {
-            this.xhr.onreadystatechange = function() {
+            this.xhr.onreadystatechange = function () {
             };
             this.xhr.abort();
             this.dispatch(EVENTS.pageLoadCancel);
@@ -6985,17 +6922,17 @@ Device/OS Detection
 
         this.xhr = $.ajax({
             url: url,
-            success: $.proxy(function(data, status, xhr) {
+            success: $.proxy(function (data, status, xhr) {
                 // 给包一层 <html/>，从而可以拿到完整的结构
                 var $doc = $('<html></html>');
                 $doc.append(data);
                 callback.success && callback.success.call(null, $doc, status, xhr);
             }, this),
-            error: function(xhr, status, err) {
+            error: function (xhr, status, err) {
                 callback.error && callback.error.call(null, xhr, status, err);
                 self.dispatch(EVENTS.pageLoadError);
             },
-            complete: function(xhr, status) {
+            complete: function (xhr, status) {
                 callback.complete && callback.complete.call(null, xhr, status);
                 self.dispatch(EVENTS.pageLoadComplete);
             }
@@ -7009,33 +6946,12 @@ Device/OS Detection
      * @param $doc ajax 载入的页面的 jq 对象，可以看做是该页面的 $(document)
      * @private
      */
-    Router.prototype._parseDocument = function(url, $doc) {
+    Router.prototype._parseDocumentTest = function (url, $doc) {
         var $innerView = $doc.find('.' + routerConfig.sectionGroupClass);
 
         if (!$innerView.length) {
             throw new Error('missing router view mark: ' + routerConfig.sectionGroupClass);
         }
-
-        this._saveDocumentIntoCache($doc, url);
-    };
-
-    /**
-     * 把一个页面的相关信息保存到 this.cache 中
-     *
-     * 以页面的 baseUrl 为 key,而 value 则是一个 DocumentCache
-     *
-     * @param {*} doc doc
-     * @param {String} url url
-     * @private
-     */
-    Router.prototype._saveDocumentIntoCache = function(doc, url) {
-        var urlAsKey = Util.toUrlObject(url).base;
-        var $doc = $(doc);
-
-        this.cache[urlAsKey] = {
-            $doc: $doc,
-            $content: $doc.find('.' + routerConfig.sectionGroupClass)
-        };
     };
 
     /**
@@ -7046,11 +6962,11 @@ Device/OS Detection
      * @returns {State|null}
      * @private
      */
-    Router.prototype._getLastState = function() {
+    Router.prototype._getLastState = function () {
         var currentState = sessionStorage.getItem(this.sessionNames.currentState);
         try {
             currentState = JSON.parse(currentState);
-        } catch(e) {
+        } catch (e) {
             currentState = null;
         }
 
@@ -7063,7 +6979,7 @@ Device/OS Detection
      * @param {State} state
      * @private
      */
-    Router.prototype._saveAsCurrentState = function(state) {
+    Router.prototype._saveAsCurrentState = function (state) {
         sessionStorage.setItem(this.sessionNames.currentState, JSON.stringify(state));
     };
 
@@ -7075,7 +6991,7 @@ Device/OS Detection
      * @returns {number}
      * @private
      */
-    Router.prototype._getNextStateId = function() {
+    Router.prototype._getNextStateId = function () {
         var maxStateId = sessionStorage.getItem(this.sessionNames.maxStateId);
         return maxStateId ? parseInt(maxStateId, 10) + 1 : 1;
     };
@@ -7085,7 +7001,7 @@ Device/OS Detection
      *
      * @private
      */
-    Router.prototype._incMaxStateId = function() {
+    Router.prototype._incMaxStateId = function () {
         sessionStorage.setItem(this.sessionNames.maxStateId, this._getNextStateId());
     };
 
@@ -7098,8 +7014,8 @@ Device/OS Detection
      * @param direction 新文档切入方向
      * @private
      */
-    Router.prototype._animateDocument = function($from, $to, $visibleSection, direction) {
-        var sectionId = $visibleSection.attr('id');
+    Router.prototype._animateDocument = function ($from, $to, $visibleSection, direction, callback) {
+        var sectionId = $visibleSection.data('id');
 
 
         var $visibleSectionInFrom = $from.find('.' + routerConfig.curPageClass);
@@ -7107,44 +7023,25 @@ Device/OS Detection
 
         $visibleSection.trigger(EVENTS.pageAnimationStart, [sectionId, $visibleSection]);
 
-        this._animateElement($from, $to, direction);
-
-        $from.animationEnd(function() {
+        if (direction == 'none'){
+            callback && callback();
             $visibleSectionInFrom.removeClass(routerConfig.visiblePageClass);
-            // 移除 document 前后，发送 beforePageRemove 和 pageRemoved 事件
-            $(window).trigger(EVENTS.beforePageRemove, [$from]);
-            $from.remove();
-            $(window).trigger(EVENTS.pageRemoved);
-        });
-
-        $to.animationEnd(function() {
             $visibleSection.trigger(EVENTS.pageAnimationEnd, [sectionId, $visibleSection]);
             // 外层（init.js）中会绑定 pageInitInternal 事件，然后对页面进行初始化
             $visibleSection.trigger(EVENTS.pageInit, [sectionId, $visibleSection]);
-        });
-    };
+        } else{
+            this._animateElement($from, $to, direction);
+            $from.animationEnd(function () {
+                $visibleSectionInFrom.removeClass(routerConfig.visiblePageClass);
+                callback && callback();
+            });
 
-    /**
-     * 把当前文档的展示 section 从一个 section 切换到另一个 section
-     *
-     * @param $from
-     * @param $to
-     * @param direction
-     * @private
-     */
-    Router.prototype._animateSection = function($from, $to, direction) {
-        var toId = $to.attr('id');
-        $from.trigger(EVENTS.beforePageSwitch, [$from.attr('id'), $from]);
-
-        $from.removeClass(routerConfig.curPageClass);
-        $to.addClass(routerConfig.curPageClass);
-        $to.trigger(EVENTS.pageAnimationStart, [toId, $to]);
-        this._animateElement($from, $to, direction);
-        $to.animationEnd(function() {
-            $to.trigger(EVENTS.pageAnimationEnd, [toId, $to]);
-            // 外层（init.js）中会绑定 pageInitInternal 事件，然后对页面进行初始化
-            $to.trigger(EVENTS.pageInit, [toId, $to]);
-        });
+            $to.animationEnd(function () {
+                $visibleSection.trigger(EVENTS.pageAnimationEnd, [sectionId, $visibleSection]);
+                // 外层（init.js）中会绑定 pageInitInternal 事件，然后对页面进行初始化
+                $visibleSection.trigger(EVENTS.pageInit, [sectionId, $visibleSection]);
+            });
+        }
     };
 
     /**
@@ -7157,7 +7054,7 @@ Device/OS Detection
      * @param direction 切换的方向
      * @private
      */
-    Router.prototype._animateElement = function($from, $to, direction) {
+    Router.prototype._animateElement = function ($from, $to, direction) {
         // todo: 可考虑如果入参不指定，那么尝试读取 $to 的属性，再没有再使用默认的
         // 考虑读取点击的链接上指定的方向
         if (typeof direction === 'undefined') {
@@ -7171,7 +7068,7 @@ Device/OS Detection
             'page-from-left-to-center'].join(' ');
 
         var classForFrom, classForTo;
-        switch(direction) {
+        switch (direction) {
             case DIRECTION.rightToLeft:
                 classForFrom = 'page-from-center-to-left';
                 classForTo = 'page-from-right-to-center';
@@ -7189,10 +7086,10 @@ Device/OS Detection
         $from.removeClass(animPageClasses).addClass(classForFrom);
         $to.removeClass(animPageClasses).addClass(classForTo);
 
-        $from.animationEnd(function() {
+        $from.animationEnd(function () {
             $from.removeClass(animPageClasses);
         });
-        $to.animationEnd(function() {
+        $to.animationEnd(function () {
             $to.removeClass(animPageClasses);
         });
     };
@@ -7203,7 +7100,7 @@ Device/OS Detection
      * @returns {*}
      * @private
      */
-    Router.prototype._getCurrentSection = function() {
+    Router.prototype._getCurrentSection = function () {
         return this.$view.find('.' + routerConfig.curPageClass).eq(0);
     };
 
@@ -7217,21 +7114,44 @@ Device/OS Detection
      * @param {State} fromState 旧 state
      * @private
      */
-    Router.prototype._back = function(state, fromState) {
-        if (this._isTheSameDocument(state.url.full, fromState.url.full)) {
-            var $newPage = $('#' + state.pageId);
-            if ($newPage.length) {
-                var $currentPage = this._getCurrentSection();
-                this._animateSection($currentPage, $newPage, DIRECTION.leftToRight);
-                this._saveAsCurrentState(state);
-            } else {
-                location.href = state.url.full;
-            }
-        } else {
-            this._saveDocumentIntoCache($(document), fromState.url.full);
-            this._switchToDocument(state.url.full, false, false, DIRECTION.leftToRight);
-            this._saveAsCurrentState(state);
+    Router.prototype._back = function (state, fromState) {
+        var $groups = this.$view.find('.' + routerConfig.sectionGroupClass);
+        if ($groups.length == 1){
+            // no more back
+            return;
         }
+        this._doRemoveDocument(DIRECTION.leftToRight);
+        this._saveAsCurrentState(state);
+    };
+
+    /**
+     * 利用缓存来做具体的切换文档操作
+     *
+     * - 确定待切入的文档的默认展示 section
+     * - 把新文档 append 到 view 中
+     * - 动画切换文档
+     * - 如果需要 pushState，那么把最新的状态 push 进去并把当前状态更新为该状态
+     *
+     * @param {String} url 待切换的文档的 url
+     * @param {Boolean} isPushState 加载页面后是否需要 pushState，默认是 true
+     * @param {String} direction 动画切换方向，默认是 DIRECTION.rightToLeft
+     * @private
+     */
+    Router.prototype._doRemoveDocument = function (direction) {
+        var $groups = this.$view.find('.' + routerConfig.sectionGroupClass);
+        var $currentDoc = $groups.last();
+        var $oldDoc = $groups.eq($groups.length -2);
+        var $visibleSection = $oldDoc.find('.' + routerConfig.pageClass).eq(0);
+        var $currentSection = this._getCurrentSection();
+        $currentSection[0] && $currentSection.trigger(EVENTS.beforePageSwitch, [$currentSection.data('id'), $currentSection]);
+
+        $visibleSection.addClass(routerConfig.curPageClass);
+
+        this._animateDocument($currentDoc, $oldDoc, $visibleSection, direction, function(){
+            $(window).trigger(EVENTS.beforePageRemove, [$currentSection.data('id'), $currentDoc]);
+            $currentDoc.remove();
+            $(window).trigger(EVENTS.pageRemoved);
+        });
     };
 
     /**
@@ -7241,21 +7161,8 @@ Device/OS Detection
      * @param {State} fromState 旧 state
      * @private
      */
-    Router.prototype._forward = function(state, fromState) {
-        if (this._isTheSameDocument(state.url.full, fromState.url.full)) {
-            var $newPage = $('#' + state.pageId);
-            if ($newPage.length) {
-                var $currentPage = this._getCurrentSection();
-                this._animateSection($currentPage, $newPage, DIRECTION.rightToLeft);
-                this._saveAsCurrentState(state);
-            } else {
-                location.href = state.url.full;
-            }
-        } else {
-            this._saveDocumentIntoCache($(document), fromState.url.full);
-            this._switchToDocument(state.url.full, false, false, DIRECTION.rightToLeft);
-            this._saveAsCurrentState(state);
-        }
+    Router.prototype._forward = function (state, fromState) {
+        // no forward allowed
     };
 
     /**
@@ -7266,7 +7173,7 @@ Device/OS Detection
      * @param event
      * @private
      */
-    Router.prototype._onPopState = function(event) {
+    Router.prototype._onPopState = function (event) {
         var state = event.state;
         // if not a valid state, do nothing
         if (!state || !state.pageId) {
@@ -7300,7 +7207,7 @@ Device/OS Detection
      * @param {String} sectionId 新状态中显示的 section 元素的 id
      * @private
      */
-    Router.prototype._pushNewState = function(url, sectionId) {
+    Router.prototype._pushNewState = function (url, sectionId) {
         var state = {
             id: this._getNextStateId(),
             pageId: sectionId,
@@ -7318,11 +7225,12 @@ Device/OS Detection
      * @returns {string}
      * @private
      */
-    Router.prototype._generateRandomId = function() {
-        return "page-" + (+new Date());
+    var _index = 0;
+    Router.prototype._generateRandomId = function () {
+        return "page-" + (_index++);
     };
 
-    Router.prototype.dispatch = function(event) {
+    Router.prototype.dispatch = function (event) {
         var e = new CustomEvent(event, {
             bubbles: true,
             cancelable: true
@@ -7348,7 +7256,7 @@ Device/OS Detection
             'close-panel'
         ];
 
-        for (var i = classBlackList.length -1 ; i >= 0; i--) {
+        for (var i = classBlackList.length - 1; i >= 0; i--) {
             if ($link.hasClass(classBlackList[i])) {
                 return true;
             }
@@ -7395,7 +7303,7 @@ Device/OS Detection
         return true;
     }
 
-    $(function() {
+    $(function () {
         // 用户可选关闭router功能
         if (!$.smConfig.router) {
             return;
@@ -7405,18 +7313,9 @@ Device/OS Detection
             return;
         }
 
-        var $pages = $('.' + routerConfig.pageClass);
-        if (!$pages.length) {
-            var warnMsg = 'Disable router function because of no .page elements';
-            if (window.console && window.console.warn) {
-                console.warn(warnMsg);
-            }
-            return;
-        }
-
         var router = $.router = new Router();
 
-        $(document).on('click', 'a', function(e) {
+        $(document).on('click', 'a', function (e) {
             var $target = $(e.currentTarget);
 
             var filterResult = customClickFilter($target);
@@ -7445,27 +7344,6 @@ Device/OS Detection
         });
     });
 }(Zepto);
-
-/**
- * @typedef {Object} State
- * @property {Number} id
- * @property {String} url
- * @property {String} pageId
- */
-
-/**
- * @typedef {Object} UrlObject 字符串 url 转为的对象
- * @property {String} base url 的基本路径
- * @property {String} full url 的完整绝对路径
- * @property {String} origin 转换前的 url
- * @property {String} fragment url 的 fragment
- */
-
-/**
- * @typedef {Object} DocumentCache
- * @property {*|HTMLElement} $doc 看做是 $(document)
- * @property {*|HTMLElement} $content $doc 里的 routerConfig.innerViewClass 元素
- */
 
 /*======================================================
 ************   Modals   ************
@@ -7518,22 +7396,22 @@ Device/OS Detection
 }(Zepto);
 
 /*jshint unused: false*/
-+function($) {
++function ($) {
     'use strict';
 
-    var getPage = function() {
+    var getPage = function () {
         var $page = $(".page-current");
-        if (!$page[0]) $page = $(".page").addClass('page-current');
+        if (!$page[0]) $page = $(".page").eq(0).addClass('page-current');
         return $page;
     };
 
     //初始化页面中的JS组件
-    $.initPage = function(page) {
+    $.initPage = function (page) {
         var $page = getPage();
         if (!$page[0]) $page = $(document.body);
         var $content = $page.hasClass('content') ?
-                       $page :
-                       $page.find('.content');
+            $page :
+            $page.find('.content');
         $content.scroller();  //注意滚动条一定要最先初始化
 
         $.initPullToRefresh($content);
@@ -7546,36 +7424,36 @@ Device/OS Detection
 
     if ($.smConfig.showPageLoadingIndicator) {
         //这里的 以 push 开头的是私有事件，不要用
-        $(window).on('pageLoadStart', function() {
+        $(window).on('pageLoadStart', function () {
             $.showIndicator();
 
         });
-        $(window).on('pageAnimationStart', function() {
+        $(window).on('pageAnimationStart', function () {
             $.hideIndicator();
         });
-        $(window).on('pageLoadCancel', function() {
+        $(window).on('pageLoadCancel', function () {
             $.hideIndicator();
         });
-        $(window).on('pageLoadComplete', function() {
+        $(window).on('pageLoadComplete', function () {
             $.hideIndicator();
         });
-        $(window).on('pageLoadError', function() {
+        $(window).on('pageLoadError', function () {
             $.hideIndicator();
             $.toast('加载失败');
         });
     }
 
-    $(window).on('pageAnimationStart', function(event,id,page) {
+    $(window).on('pageAnimationStart', function (event, id, page) {
         // 在路由切换页面动画开始前,为了把位于 .page 之外的 popup 等隐藏,此处做些处理
         $.closeModal();
         $.closePanel();
         // 如果 panel 的 effect 是 reveal 时,似乎是 page 的动画或别的样式原因导致了 transitionEnd 时间不会触发
         // 这里暂且处理一下
         $('body').removeClass('panel-closing');
-        $.allowPanelOpen = true;  
+        $.allowPanelOpen = true;
     });
-   
-    $(window).on('pageInit', function() {
+
+    $(window).on('pageInit', function () {
         $.hideIndicator();
         $.lastPosition({
             needMemoryClass: [
@@ -7591,21 +7469,21 @@ Device/OS Detection
     // 1. aD -> bDE
     // 2. back
     // 3. aD -> bD
-    window.addEventListener('pageshow', function(event) {
+    window.addEventListener('pageshow', function (event) {
         if (event.persisted) {
             location.reload();
         }
     });
 
-    $.init = function() {
+    $.init = function () {
         var $page = getPage();
-        var id = $page[0].id;
+        var id = $page.data('id');
         $.initPage();
         $page.trigger('pageInit', [id, $page]);
     };
 
     //DOM READY
-    $(function() {
+    $(function () {
         //直接绑定
         FastClick.attach(document.body);
 
@@ -7613,7 +7491,7 @@ Device/OS Detection
             $.init();
         }
 
-        $(document).on('pageInitInternal', function(e, id, page) {
+        $(document).on('pageInitInternal', function (e, id, page) {
             $.init();
         });
     });

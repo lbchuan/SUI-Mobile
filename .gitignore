@@ -9,3 +9,5 @@ _site/*
 *.orig
 docs/demos/test.html
 docs/assets/js/test.js
+.idea
+npm-debug.log
