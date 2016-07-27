@@ -6941,7 +6941,7 @@ Device/OS Detection
             success: $.proxy(function (data, status, xhr) {
                 // 给包一层 <html/>，从而可以拿到完整的结构
                 var $doc = $('<html></html>');
-                $doc.append(data);
+                $('<div class="' + routerConfig.sectionGroupClass + '"></div>').append(data).appendTo($doc);
                 callback.success && callback.success.call(null, $doc, status, xhr);
             }, this),
             error: function (xhr, status, err) {
