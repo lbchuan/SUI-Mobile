@@ -1,20 +1,20 @@
 /*jshint unused: false*/
-+function($) {
++function ($) {
     'use strict';
 
-    var getPage = function() {
+    var getPage = function () {
         var $page = $(".page-current");
-        if (!$page[0]) $page = $(".page").addClass('page-current');
+        if (!$page[0]) $page = $(".page").eq(0).addClass('page-current');
         return $page;
     };
 
     //初始化页面中的JS组件
-    $.initPage = function(page) {
+    $.initPage = function (page) {
         var $page = getPage();
         if (!$page[0]) $page = $(document.body);
         var $content = $page.hasClass('content') ?
-                       $page :
-                       $page.find('.content');
+            $page :
+            $page.find('.content');
         $content.scroller();  //注意滚动条一定要最先初始化
 
         $.initPullToRefresh($content);
@@ -27,36 +27,36 @@
 
     if ($.smConfig.showPageLoadingIndicator) {
         //这里的 以 push 开头的是私有事件，不要用
-        $(window).on('pageLoadStart', function() {
+        $(window).on('pageLoadStart', function () {
             $.showIndicator();
 
         });
-        $(window).on('pageAnimationStart', function() {
+        $(window).on('pageAnimationStart', function () {
             $.hideIndicator();
         });
-        $(window).on('pageLoadCancel', function() {
+        $(window).on('pageLoadCancel', function () {
             $.hideIndicator();
         });
-        $(window).on('pageLoadComplete', function() {
+        $(window).on('pageLoadComplete', function () {
             $.hideIndicator();
         });
-        $(window).on('pageLoadError', function() {
+        $(window).on('pageLoadError', function () {
             $.hideIndicator();
             $.toast('加载失败');
         });
     }
 
-    $(window).on('pageAnimationStart', function(event,id,page) {
+    $(window).on('pageAnimationStart', function (event, id, page) {
         // 在路由切换页面动画开始前,为了把位于 .page 之外的 popup 等隐藏,此处做些处理
         $.closeModal();
         $.closePanel();
         // 如果 panel 的 effect 是 reveal 时,似乎是 page 的动画或别的样式原因导致了 transitionEnd 时间不会触发
         // 这里暂且处理一下
         $('body').removeClass('panel-closing');
-        $.allowPanelOpen = true;  
+        $.allowPanelOpen = true;
     });
-   
-    $(window).on('pageInit', function() {
+
+    $(window).on('pageInit', function () {
         $.hideIndicator();
         $.lastPosition({
             needMemoryClass: [
@@ -72,21 +72,21 @@
     // 1. aD -> bDE
     // 2. back
     // 3. aD -> bD
-    window.addEventListener('pageshow', function(event) {
+    window.addEventListener('pageshow', function (event) {
         if (event.persisted) {
             location.reload();
         }
     });
 
-    $.init = function() {
+    $.init = function () {
         var $page = getPage();
-        var id = $page[0].id;
+        var id = $page.data('id');
         $.initPage();
         $page.trigger('pageInit', [id, $page]);
     };
 
     //DOM READY
-    $(function() {
+    $(function () {
         //直接绑定
         FastClick.attach(document.body);
 
@@ -94,7 +94,7 @@
             $.init();
         }
 
-        $(document).on('pageInitInternal', function(e, id, page) {
+        $(document).on('pageInitInternal', function (e, id, page) {
             $.init();
         });
     });
