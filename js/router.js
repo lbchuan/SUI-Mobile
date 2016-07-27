@@ -413,10 +413,10 @@
             this.xhr.onreadystatechange = function () {
             };
             this.xhr.abort();
-            this.dispatch(EVENTS.pageLoadCancel);
+            this.dispatch(EVENTS.pageLoadCancel, {details:{options:{url:url}}});
         }
 
-        this.dispatch(EVENTS.pageLoadStart);
+        this.dispatch(EVENTS.pageLoadStart, {details:{options:{url:url}}});
 
         callback = callback || {};
         var self = this;
@@ -431,11 +431,11 @@
             }, this),
             error: function (xhr, status, err) {
                 callback.error && callback.error.call(null, xhr, status, err);
-                self.dispatch(EVENTS.pageLoadError);
+                self.dispatch(EVENTS.pageLoadError, {details:{options:{url:url}}});
             },
             complete: function (xhr, status) {
                 callback.complete && callback.complete.call(null, xhr, status);
-                self.dispatch(EVENTS.pageLoadComplete);
+                self.dispatch(EVENTS.pageLoadComplete, {details:{options:{url:url}}});
             }
         });
     };
@@ -731,11 +731,11 @@
         return "page-" + (_index++);
     };
 
-    Router.prototype.dispatch = function (event) {
-        var e = new CustomEvent(event, {
+    Router.prototype.dispatch = function (event, options) {
+        var e = new CustomEvent(event, $.extend({
             bubbles: true,
             cancelable: true
-        });
+        }, options));
 
         //noinspection JSUnresolvedFunction
         window.dispatchEvent(e);
