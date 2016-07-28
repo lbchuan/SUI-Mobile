@@ -102,6 +102,14 @@
             var hashIndex = url.indexOf('#');
             return hashIndex === -1 ? '' : url.slice(hashIndex + 1);
         },
+        getPathname: function (url) {
+            var start = url.indexOf('/', 8),
+                end = url.indexOf('?');
+            if (end == -1) {
+                end = url.length;
+            }
+            return url.substring(start, end);
+        },
         /**
          * 获取一个链接相对于当前页面的绝对地址形式
          *
@@ -141,13 +149,15 @@
         toUrlObject: function (url) {
             var fullUrl = this.getAbsoluteUrl(url),
                 baseUrl = this.getBaseUrl(fullUrl),
-                fragment = this.getUrlFragment(url);
+                fragment = this.getUrlFragment(url),
+                pathname = this.getPathname(url);
 
             return {
                 base: baseUrl,
                 full: fullUrl,
                 original: url,
-                fragment: fragment
+                fragment: fragment,
+                pathname: pathname
             };
         },
         /**
@@ -192,7 +202,6 @@
             $.init();
         } else {
             // 不存在，则加载页面
-            // console.log(Util.toUrlObject(window.location.href))
             $(function () {
                 $.router.load(window.location.href, true, true, 'none');
             });
@@ -273,24 +282,25 @@
      * @private
      */
     Router.prototype._load = function (url, ignoreCache, isPushState, direction) {
-        var baseUrl = Util.toUrlObject(url).base;
+        var urlObj = Util.toUrlObject(url);
+        var pathname = urlObj.pathname;
 
         if (ignoreCache) {
-            delete this.cache[baseUrl];
+            delete this.cache[pathname];
         }
 
-        var cacheDocument = this.cache[baseUrl];
+        var cacheDocument = this.cache[pathname];
         var context = this;
 
         if (cacheDocument) {
-            this._doSwitchDocument(baseUrl, cacheDocument, isPushState, direction);
+            this._doSwitchDocument(urlObj, cacheDocument, isPushState, direction);
         } else {
-            this._loadDocument(baseUrl, {
+            this._loadDocument(urlObj.full, {
                 success: function ($doc) {
                     // cache the dom
-                    context.cache[baseUrl] = $doc;
-                    context._parseDocumentTest(baseUrl, $doc);
-                    context._doSwitchDocument(baseUrl, $doc, isPushState, direction);
+                    context.cache[pathname] = $doc;
+                    context._parseDocumentTest($doc);
+                    context._doSwitchDocument(urlObj, $doc, isPushState, direction);
                 }
             });
         }
@@ -309,7 +319,7 @@
      * @param {String} direction 动画切换方向，默认是 DIRECTION.rightToLeft
      * @private
      */
-    Router.prototype._doSwitchDocument = function (url, $doc, isPushState, direction) {
+    Router.prototype._doSwitchDocument = function (urlObj, $doc, isPushState, direction) {
         if (typeof isPushState === 'undefined') {
             isPushState = true;
         }
@@ -324,6 +334,7 @@
         $visibleSection.addClass(curPageId, routerConfig.curPageClass);
         $visibleSection.data('id', curPageId);
         // 添加query参数到dom中
+        var url = urlObj.base;
         var query = {};
         if (url.indexOf('?') != -1) {
             var start = url.indexOf('?'),
@@ -348,7 +359,7 @@
         this._animateDocument($currentDoc, $newDoc, $visibleSection, direction);
 
         if (isPushState) {
-            this._pushNewState(url, curPageId);
+            this._pushNewState(urlObj, curPageId);
         }
     };
 
@@ -397,7 +408,7 @@
         // 回退到具体历史，则判断出历史第几个
         var urlObj = Util.toUrlObject(url);
         for (var i = this.states.length - 1; i >= 0; i--) {
-            if (urlObj.base == this.states[i].url.base) {
+            if (urlObj.pathname == this.states[i].url.pathname) {
                 break;
             }
         }
@@ -478,7 +489,7 @@
      * @param $doc ajax 载入的页面的 jq 对象，可以看做是该页面的 $(document)
      * @private
      */
-    Router.prototype._parseDocumentTest = function (url, $doc) {
+    Router.prototype._parseDocumentTest = function ($doc) {
         var $innerView = $doc.find('.' + routerConfig.sectionGroupClass);
 
         if (!$innerView.length) {
@@ -651,7 +662,7 @@
             // no more back
             return;
         }
-        this._doRemoveDocument(state, fromState,DIRECTION.leftToRight);
+        this._doRemoveDocument(state, fromState, DIRECTION.leftToRight);
         this._saveAsCurrentState(state);
     };
 
@@ -684,7 +695,7 @@
         this._animateDocument($currentDoc, $oldDoc, $visibleSection, direction, function () {
             // 完成切换，按顺序将fromState到state之间的页面删除
             // 同时清理this.states
-            while(that.states[that.states.length-1].url.base != state.url.base){
+            while (that.states[that.states.length - 1].url.pathname != state.url.pathname) {
                 var popState = that.states.pop();
                 var $popSection = that.$view.find('.' + popState.pageId);
                 var $popDoc = $popSection.parent();
@@ -733,14 +744,14 @@
      * @param {String} sectionId 新状态中显示的 section 元素的 id
      * @private
      */
-    Router.prototype._pushNewState = function (url, sectionId) {
+    Router.prototype._pushNewState = function (urlObj, sectionId) {
         var state = {
             id: this._getNextStateId(),
             pageId: sectionId,
-            url: Util.toUrlObject(url)
+            url: urlObj
         };
 
-        theHistory.pushState(state, '', url);
+        theHistory.pushState(state, '', urlObj.full);
         this.states.push(state);
         this._saveAsCurrentState(state);
         this._incMaxStateId();
