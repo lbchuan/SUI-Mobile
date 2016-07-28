@@ -203,7 +203,13 @@
         } else {
             // 不存在，则加载页面
             $(function () {
-                $.router.load(window.location.href, true, true, 'none');
+                $.router.load({
+                    url: window.location.href,
+                    ignoreCache: true,
+                    ignoreSame: true,
+                    direction: 'none',
+                    isPushState: true
+                });
             });
         }
     }
@@ -250,18 +256,60 @@
      * @param {String} url url
      * @param {Boolean=} ignoreCache 是否强制请求不使用缓存，对 document 生效，默认是 false
      */
-    Router.prototype.load = function (url, ignoreCache, ignoreSame, direction) {
-        if (ignoreCache === undefined) {
-            ignoreCache = false;
-        }
-        if (ignoreSame === undefined) {
-            ignoreSame = false;
+    Router.prototype.load = function (options) {
+        if (typeof options == 'string') {
+            options = {
+                url: options,
+                ignoreCache: false,
+                ignoreSame: false,
+                direction: DIRECTION.rightToLeft,
+                isPushState: true
+            }
         }
 
-        if (!ignoreSame && this._isTheSameDocument(location.href, url)) {
+        options = $.extend({
+            ignoreCache: false,
+            ignoreSame: false,
+            direction: DIRECTION.rightToLeft,
+            isPushState: true
+        }, options);
+
+        if (!options.ignoreSame && this._isTheSameDocument(location.href, options.url)) {
             return;
         } else {
-            this._load(url, ignoreCache, true, direction);
+            if (options.history){
+                var oldCallback = options.callback;
+                var that = this;
+                options.callback = function(){
+                    // 到指定历史页面
+                    var currState = that.states[that.states.length -1];
+                    for (var i = that.states.length -1;i>=0;i--){
+                        if (options.history == that.states[i].url.pathname) {
+                            break;
+                        }
+                    }
+                    that._tempNoPopBack = function(){
+                        theHistory.pushState(currState, '', currState.url.full);
+                    };
+                    theHistory.go(i-that.states.length +1);
+
+                    // 删除页面
+                    for (var d = i+1;d< that.states.length-1;d++){
+                        var $popSection = that.$view.find('.' + that.states[d].pageId);
+                        var $popDoc = $popSection.parent();
+                        $popSection.trigger(EVENTS.beforePageRemove, [$popSection.data('id'), $popSection]);
+                        $popDoc.remove();
+                        $(window).trigger(EVENTS.pageRemoved);
+                    }
+
+                    // 处理this.states
+                    that.states = that.states.slice(0, i+1);
+                    that.states.push(currState);
+
+                    oldCallback && oldCallback();
+                }
+            }
+            this._load(options);
         }
     };
 
@@ -281,11 +329,11 @@
      * @param {String=} direction 新文档切入的方向
      * @private
      */
-    Router.prototype._load = function (url, ignoreCache, isPushState, direction) {
-        var urlObj = Util.toUrlObject(url);
+    Router.prototype._load = function (options) {
+        var urlObj = Util.toUrlObject(options.url);
         var pathname = urlObj.pathname;
 
-        if (ignoreCache) {
+        if (options.ignoreCache) {
             delete this.cache[pathname];
         }
 
@@ -293,14 +341,14 @@
         var context = this;
 
         if (cacheDocument) {
-            this._doSwitchDocument(urlObj, cacheDocument, isPushState, direction);
+            this._doSwitchDocument(urlObj, cacheDocument, options.isPushState, options.direction, options.callback);
         } else {
             this._loadDocument(urlObj.full, {
                 success: function ($doc) {
                     // cache the dom
                     context.cache[pathname] = $doc;
                     context._parseDocumentTest($doc);
-                    context._doSwitchDocument(urlObj, $doc, isPushState, direction);
+                    context._doSwitchDocument(urlObj, $doc, options.isPushState, options.direction, options.callback);
                 }
             });
         }
@@ -319,7 +367,7 @@
      * @param {String} direction 动画切换方向，默认是 DIRECTION.rightToLeft
      * @private
      */
-    Router.prototype._doSwitchDocument = function (urlObj, $doc, isPushState, direction) {
+    Router.prototype._doSwitchDocument = function (urlObj, $doc, isPushState, direction, callback) {
         if (typeof isPushState === 'undefined') {
             isPushState = true;
         }
@@ -356,12 +404,28 @@
 
         $visibleSection.addClass(routerConfig.curPageClass);
 
-        this._animateDocument($currentDoc, $newDoc, $visibleSection, direction);
-
         if (isPushState) {
             this._pushNewState(urlObj, curPageId);
         }
+
+        this._animateDocument($currentDoc, $newDoc, $visibleSection, direction, callback);
     };
+
+    /**
+     * 链接点击load，则根据链接中的参数控制加载操作
+     * @param $target
+     * @private
+     */
+    Router.prototype._linkLoad = function ($target) {
+        var ignoreCache = $target.attr('data-no-cache') === 'true';
+        var url = $target.attr('href');
+        var history = $target.data('history');
+        this.load({
+            url: url,
+            ignoreCache: ignoreCache,
+            history: history
+        });
+    }
 
     /**
      * 链接点击back，则根据链接中的参数控制返回操作
@@ -695,7 +759,7 @@
         this._animateDocument($currentDoc, $oldDoc, $visibleSection, direction, function () {
             // 完成切换，按顺序将fromState到state之间的页面删除
             // 同时清理this.states
-            while (that.states[that.states.length - 1].url.pathname != state.url.pathname) {
+            while (that.states[that.states.length - 1].url.base != state.url.base) {
                 var popState = that.states.pop();
                 var $popSection = that.$view.find('.' + popState.pageId);
                 var $popDoc = $popSection.parent();
@@ -715,6 +779,11 @@
      * @private
      */
     Router.prototype._onPopState = function (event) {
+        if (this._tempNoPopBack){
+            this._tempNoPopBack();
+            this._tempNoPopBack = undefined;
+            return;
+        }
         var state = event.state;
         // if not a valid state, do nothing
         if (!state || !state.pageId) {
@@ -875,9 +944,7 @@
                     return;
                 }
 
-                var ignoreCache = $target.attr('data-no-cache') === 'true';
-
-                router.load(url, ignoreCache);
+                router._linkLoad($target);
             }
         });
     });
