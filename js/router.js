@@ -249,12 +249,16 @@
     };
 
     Router.prototype.reloadPrevious = function () {
-        if (this.states.length == 1){
+        if (this.states.length == 1) {
             return;
         }
 
         // 删除前一个group
+        var preState = this.states[this.states.length - 2];
+        this._removeDocument(preState);
 
+        // 加载前一个
+        this._addDocument(preState.pageId, preState.url, this.cache[preState.url.pathname], true);
     };
 
     /**
@@ -287,29 +291,29 @@
         if (!options.ignoreSame && this._isTheSameDocument(location.href, options.url)) {
             return;
         } else {
-            if (options.history){
+            if (options.history) {
                 var oldCallback = options.callback;
                 var that = this;
-                options.callback = function(){
+                options.callback = function () {
                     // 到指定历史页面
-                    var currState = that.states[that.states.length -1];
-                    for (var i = that.states.length -1;i>=0;i--){
+                    var currState = that.states[that.states.length - 1];
+                    for (var i = that.states.length - 1; i >= 0; i--) {
                         if (options.history == that.states[i].url.pathname) {
                             break;
                         }
                     }
-                    that._tempNoPopBack = function(){
+                    that._tempNoPopBack = function () {
                         theHistory.pushState(currState, '', currState.url.full);
                     };
-                    theHistory.go(i-that.states.length +1);
+                    theHistory.go(i - that.states.length + 1);
 
                     // 删除页面
-                    for (var d = i+1;d< that.states.length-1;d++){
+                    for (var d = i + 1; d < that.states.length - 1; d++) {
                         that._removeDocument(that.states[d]);
                     }
 
                     // 处理this.states
-                    that.states = that.states.slice(0, i+1);
+                    that.states = that.states.slice(0, i + 1);
                     that.states.push(currState);
 
                     oldCallback && oldCallback();
@@ -379,12 +383,37 @@
         }
 
         var $currentDoc = this.$view.find('.' + routerConfig.sectionGroupClass).last();
+        var $currentSection = this._getCurrentSection();
+
+        var curPageId = this._generateRandomId();
+        var $visibleSection = this._addDocument(curPageId, urlObj, $doc);
+
+        $currentSection[0] && $currentSection.trigger(EVENTS.beforePageSwitch, [$currentSection.data('id'), $currentSection]);
+
+        $visibleSection.addClass(routerConfig.curPageClass);
+
+        if (isPushState) {
+            this._pushNewState(urlObj, curPageId);
+        }
+
+        this._animateDocument($currentDoc, $visibleSection.parent(), $visibleSection, direction, callback);
+    };
+
+    Router.prototype._addDocument = function (curPageId, urlObj, $doc, prepend) {
+        if (prepend == undefined) {
+            prepend = false;
+        }
+
         // 复制一份html，插入
         var $newDoc = $($doc.html());
-        this.$view.append($newDoc);
+        if (prepend) {
+            var $currentDoc = this.$view.find('.' + routerConfig.sectionGroupClass).last();
+            $currentDoc.before($newDoc);
+        } else {
+            this.$view.append($newDoc);
+        }
 
         var $visibleSection = $newDoc.find('.' + routerConfig.pageClass).eq(0);
-        var curPageId = this._generateRandomId();
         $visibleSection.addClass(curPageId, routerConfig.curPageClass);
         $visibleSection.data('id', curPageId);
         // 添加query参数到dom中
@@ -405,16 +434,7 @@
         $visibleSection.data('query', query);
         $visibleSection.trigger(EVENTS.domLoaded, [curPageId, $visibleSection]);
 
-        var $currentSection = this._getCurrentSection();
-        $currentSection[0] && $currentSection.trigger(EVENTS.beforePageSwitch, [$currentSection.data('id'), $currentSection]);
-
-        $visibleSection.addClass(routerConfig.curPageClass);
-
-        if (isPushState) {
-            this._pushNewState(urlObj, curPageId);
-        }
-
-        this._animateDocument($currentDoc, $newDoc, $visibleSection, direction, callback);
+        return $visibleSection;
     };
 
     /**
@@ -789,7 +809,7 @@
      * @private
      */
     Router.prototype._onPopState = function (event) {
-        if (this._tempNoPopBack){
+        if (this._tempNoPopBack) {
             this._tempNoPopBack();
             this._tempNoPopBack = undefined;
             return;
