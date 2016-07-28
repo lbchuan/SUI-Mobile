@@ -767,7 +767,7 @@
             // 同时清理this.states
             while (that.states[that.states.length - 1].url.base != state.url.base) {
                 var popState = that.states.pop();
-                this._removeDocument(popState);
+                that._removeDocument(popState);
             }
         });
     };
