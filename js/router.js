@@ -85,7 +85,8 @@
         pageRemoved: 'pageRemoved', // 移除旧 document 后（适用于非内联 page 切换）
         beforePageSwitch: 'beforePageSwitch', // page 切换前，在 pageAnimationStart 前，beforePageSwitch 之后会做一些额外的处理才触发 pageAnimationStart
         pageInit: 'pageInitInternal', // 目前是定义为一个 page 加载完毕后（实际和 pageAnimationEnd 等同）
-        domLoaded: 'domLoaded' // 目前是定义为一个 page 插入dom后（实际和 pageAnimationStart 等同）
+        domLoaded: 'domLoaded', // 目前是定义为一个 page 插入dom后（实际和 pageAnimationStart 等同）
+        noMoreBack: 'noMoreBack'
     };
 
     var Util = {
@@ -247,6 +248,15 @@
         this.states = [];
     };
 
+    Router.prototype.reloadPrevious = function () {
+        if (this.states.length == 1){
+            return;
+        }
+
+        // 删除前一个group
+
+    };
+
     /**
      * 切换到 url 指定的块或文档
      *
@@ -295,11 +305,7 @@
 
                     // 删除页面
                     for (var d = i+1;d< that.states.length-1;d++){
-                        var $popSection = that.$view.find('.' + that.states[d].pageId);
-                        var $popDoc = $popSection.parent();
-                        $popSection.trigger(EVENTS.beforePageRemove, [$popSection.data('id'), $popSection]);
-                        $popDoc.remove();
-                        $(window).trigger(EVENTS.pageRemoved);
+                        that._removeDocument(that.states[d]);
                     }
 
                     // 处理this.states
@@ -433,7 +439,7 @@
      * @private
      */
     Router.prototype._linkBack = function ($target) {
-        // 先判断是否返回到指定历史页面
+        // 判断是否返回到指定历史页面
         var href = $target.attr('href');
         if (href && href != '#') {
             // 有链接，则跳转到指定历史页面
@@ -721,9 +727,9 @@
      * @private
      */
     Router.prototype._back = function (state, fromState) {
-        var $groups = this.$view.find('.' + routerConfig.sectionGroupClass);
-        if ($groups.length == 1) {
+        if (this.states.length == 1) {
             // no more back
+            $(window).trigger(EVENTS.noMoreBack, [fromState]);
             return;
         }
         this._doRemoveDocument(state, fromState, DIRECTION.leftToRight);
@@ -761,13 +767,17 @@
             // 同时清理this.states
             while (that.states[that.states.length - 1].url.base != state.url.base) {
                 var popState = that.states.pop();
-                var $popSection = that.$view.find('.' + popState.pageId);
-                var $popDoc = $popSection.parent();
-                $popSection.trigger(EVENTS.beforePageRemove, [$popSection.data('id'), $popSection]);
-                $popDoc.remove();
-                $(window).trigger(EVENTS.pageRemoved);
+                this._removeDocument(popState);
             }
         });
+    };
+
+    Router.prototype._removeDocument = function (state) {
+        var $popSection = this.$view.find('.' + state.pageId);
+        var $popDoc = $popSection.parent();
+        $popSection.trigger(EVENTS.beforePageRemove, [$popSection.data('id'), $popSection]);
+        $popDoc.remove();
+        $(window).trigger(EVENTS.pageRemoved);
     };
 
     /**
@@ -787,6 +797,7 @@
         var state = event.state;
         // if not a valid state, do nothing
         if (!state || !state.pageId) {
+            $(window).trigger(EVENTS.noMoreBack, [this._getLastState()]);
             return;
         }
 
