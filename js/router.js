@@ -228,33 +228,8 @@
 
         // 用来保存 document 的 map
         this.cache = {};
-        var $doc = $(document);
-        var $curVisibleSection = $doc.find('.' + routerConfig.pageClass).eq(0);
-        if (!$curVisibleSection[0]) {
-            return;
-        }
-
-        // var currentUrl = location.href;
-        // // 缓存整个group的dom
-        // this._saveDocumentIntoCache($doc, currentUrl);
-        // // add unique class
-        // var curPageId = this._generateRandomId();
-        // $curVisibleSection.addClass(curPageId, routerConfig.curPageClass);
-        // $curVisibleSection.data('id', curPageId);
-        //
-        // // 新进入一个使用 history.state 相关技术的页面时，如果第一个 state 不 push/replace,
-        // // 那么在后退回该页面时，将不触发 popState 事件
-        // if (theHistory.state === null) {
-        //     var curState = {
-        //         id: this._getNextStateId(),
-        //         url: Util.toUrlObject(currentUrl),
-        //         pageId: curPageId
-        //     };
-        //
-        //     theHistory.replaceState(curState, '', currentUrl);
-        //     this._saveAsCurrentState(curState);
-        //     this._incMaxStateId();
-        // }
+        // 保存路由state
+        this.states = [];
     };
 
     /**
@@ -378,17 +353,57 @@
     };
 
     /**
-     * 调用 history.forward()
+     * 链接点击back，则根据链接中的参数控制返回操作
+     * @param $target
+     * @private
      */
-    Router.prototype.forward = function () {
-        theHistory.forward();
+    Router.prototype._linkBack = function ($target) {
+        // 先判断是否返回到指定历史页面
+        var href = $target.attr('href');
+        if (href && href != '#') {
+            // 有链接，则跳转到指定历史页面
+            this.back(href);
+            return;
+        }
+        // 最后判断是否回退n个页面
+        var n = $target.data('back');
+        if (n) {
+            n = n * 1;
+        } else {
+            // 默认回退-1
+            n = -1;
+        }
+        this.back(n);
+    }
+
+    /**
+     * 调用 history.back()
+     */
+    Router.prototype.back = function (option) {
+        if (typeof  option == 'string') {
+            this._backToUrl(option);
+            return;
+        }
+        if (typeof option == 'number') {
+            theHistory.go(option);
+            return;
+        }
     };
 
     /**
      * 调用 history.back()
      */
-    Router.prototype.back = function () {
-        theHistory.back();
+    Router.prototype._backToUrl = function (url) {
+        // 回退到具体历史，则判断出历史第几个
+        var urlObj = Util.toUrlObject(url);
+        for (var i = this.states.length - 1; i >= 0; i--) {
+            if (urlObj.base == this.states[i].url.base) {
+                break;
+            }
+        }
+        if (i >= 0) {
+            theHistory.go(i - this.states.length + 1);
+        }
     };
 
     /**
@@ -624,7 +639,6 @@
     /**
      * popState 事件关联着的后退处理
      *
-     * 判断两个 state 判断是否是属于同一个文档，然后做对应的 section 或文档切换；
      * 同时在切换后把新 state 设为当前 state
      *
      * @param {State} state 新 state
@@ -637,7 +651,7 @@
             // no more back
             return;
         }
-        this._doRemoveDocument(DIRECTION.leftToRight);
+        this._doRemoveDocument(state, fromState,DIRECTION.leftToRight);
         this._saveAsCurrentState(state);
     };
 
@@ -654,32 +668,31 @@
      * @param {String} direction 动画切换方向，默认是 DIRECTION.rightToLeft
      * @private
      */
-    Router.prototype._doRemoveDocument = function (direction) {
-        var $groups = this.$view.find('.' + routerConfig.sectionGroupClass);
-        var $currentDoc = $groups.last();
-        var $oldDoc = $groups.eq($groups.length - 2);
-        var $visibleSection = $oldDoc.find('.' + routerConfig.pageClass).eq(0);
-        var $currentSection = this._getCurrentSection();
+    Router.prototype._doRemoveDocument = function (state, fromState, direction) {
+        // 找到当前的group
+        var $currentSection = this.$view.find('.' + fromState.pageId);
+        var $currentDoc = $currentSection.parent();
+        // 获取旧的group
+        var $visibleSection = this.$view.find('.' + state.pageId);
+        var $oldDoc = $visibleSection.parent();
+
         $currentSection[0] && $currentSection.trigger(EVENTS.beforePageSwitch, [$currentSection.data('id'), $currentSection]);
 
         $visibleSection.addClass(routerConfig.curPageClass);
 
+        var that = this;
         this._animateDocument($currentDoc, $oldDoc, $visibleSection, direction, function () {
-            $currentSection.trigger(EVENTS.beforePageRemove, [$currentSection.data('id'), $currentSection]);
-            $currentDoc.remove();
-            $(window).trigger(EVENTS.pageRemoved);
+            // 完成切换，按顺序将fromState到state之间的页面删除
+            // 同时清理this.states
+            while(that.states[that.states.length-1].url.base != state.url.base){
+                var popState = that.states.pop();
+                var $popSection = that.$view.find('.' + popState.pageId);
+                var $popDoc = $popSection.parent();
+                $popSection.trigger(EVENTS.beforePageRemove, [$popSection.data('id'), $popSection]);
+                $popDoc.remove();
+                $(window).trigger(EVENTS.pageRemoved);
+            }
         });
-    };
-
-    /**
-     * popState 事件关联着的前进处理,类似于 _back，不同的是切换方向
-     *
-     * @param {State} state 新 state
-     * @param {State} fromState 旧 state
-     * @private
-     */
-    Router.prototype._forward = function (state, fromState) {
-        // no forward allowed
     };
 
     /**
@@ -708,11 +721,7 @@
             return;
         }
 
-        if (state.id < lastState.id) {
-            this._back(state, lastState);
-        } else {
-            this._forward(state, lastState);
-        }
+        this._back(state, lastState);
     };
 
     /**
@@ -732,6 +741,7 @@
         };
 
         theHistory.pushState(state, '', url);
+        this.states.push(state);
         this._saveAsCurrentState(state);
         this._incMaxStateId();
     };
@@ -847,7 +857,7 @@
             e.preventDefault();
 
             if ($target.hasClass('back')) {
-                router.back();
+                router._linkBack($target);
             } else {
                 var url = $target.attr('href');
                 if (!url || url === '#') {
