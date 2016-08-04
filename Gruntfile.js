@@ -70,7 +70,8 @@ module.exports = function(grunt) {
                   'js/router.js',
                   'js/last-position.js',
                   'js/init.js',
-                  'js/scroll-fix.js'
+                  'js/scroll-fix.js',
+                  'js/smart-select.js'
               ],
               dest: '<%= meta.distPath %>js/<%= pkg.name %>.js'
             },
