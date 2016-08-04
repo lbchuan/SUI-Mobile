@@ -489,6 +489,7 @@
             theHistory.go(option);
             return;
         }
+        theHistory.go(-1);
     };
 
     /**

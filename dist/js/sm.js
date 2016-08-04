@@ -6988,6 +6988,7 @@ Device/OS Detection
             theHistory.go(option);
             return;
         }
+        theHistory.go(-1);
     };
 
     /**
