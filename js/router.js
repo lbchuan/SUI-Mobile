@@ -151,7 +151,7 @@
             var fullUrl = this.getAbsoluteUrl(url),
                 baseUrl = this.getBaseUrl(fullUrl),
                 fragment = this.getUrlFragment(url),
-                pathname = this.getPathname(url);
+                pathname = this.getPathname(fullUrl);
 
             return {
                 base: baseUrl,
