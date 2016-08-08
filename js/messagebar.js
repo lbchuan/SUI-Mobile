@@ -27,10 +27,10 @@ var Messagebar = function (container, params) {
 
     // Is In Page
     m.pageContainer = m.container.parents('.page').eq(0);
-    m.pageContent = m.pageContainer.find('.page-content');
+    m.pageContent = m.pageContainer.find('.content');
 
     // Initial Sizes
-    m.pageContentPadding = parseInt(m.pageContent.css('padding-bottom'));
+    m.pageContentPadding = 44;
     m.initialBarHeight = m.container[0].offsetHeight;
     m.initialAreaHeight = m.textarea[0].offsetHeight;
 

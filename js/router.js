@@ -261,6 +261,34 @@
         this._addDocument(preState.pageId, preState.url, this.cache[preState.url.pathname], true);
     };
 
+    Router.prototype.reloadPage = function (url) {
+        if (url == undefined) {
+            // 重新加载当前页面
+            // 注意：此处生命周期是，当前页先remove，再直接加载新页面并init
+            // 删除当前group
+            var currState = this.states[this.states.length - 1];
+            this._removeDocument(currState);
+            // 重新加载当前group
+            var $visibleSection = this._addDocument(currState.pageId, currState.url, this.cache[currState.url.pathname]);
+            this._animateDocument($('<div>'), $visibleSection.parent(), $visibleSection, 'none');
+        } else {
+            // 加载新页面，并替换到当前页面
+            if (this.states.length >= 2) {
+                this.load({
+                    url: url,
+                    history: this.states[this.states.length - 2].url.pathname
+                });
+            } else {
+                // 当前是首页
+                this.load({
+                    url: url,
+                    history: '/'
+                });
+            }
+        }
+
+    };
+
     /**
      * 切换到 url 指定的块或文档
      *
@@ -297,7 +325,7 @@
                 options.callback = function () {
                     // 到指定历史页面
                     var currState = that.states[that.states.length - 1];
-                    for (var i = that.states.length - 1; i >= 0; i--) {
+                    for (var i = that.states.length - 2; i >= 0; i--) {
                         if (options.history == that.states[i].url.pathname) {
                             break;
                         }
