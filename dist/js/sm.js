@@ -6930,6 +6930,7 @@ Device/OS Detection
                 query[item[0]] = item[1];
             }
         }
+        $visibleSection.data('page', urlObj.pathname);
         $visibleSection.data('query', query);
         $visibleSection.trigger(EVENTS.domLoaded, [curPageId, $visibleSection]);
 

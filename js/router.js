@@ -431,6 +431,7 @@
                 query[item[0]] = item[1];
             }
         }
+        $visibleSection.data('page', urlObj.pathname.substring(7, urlObj.pathname.length - 5));
         $visibleSection.data('query', query);
         $visibleSection.trigger(EVENTS.domLoaded, [curPageId, $visibleSection]);
 
