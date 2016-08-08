@@ -7754,3 +7754,340 @@ Device/OS Detection
         });
     };
 }(Zepto);
+
+/*======================================================
+************   Messagebar   ************
+======================================================*/
+$.messagebar = function (container, params) {
+    return new Messagebar(container, params);
+};
+
+var Messagebar = function (container, params) {
+    var defaults = {
+        textarea: null,
+        maxHeight: 150,
+    };
+    params = $.extend(defaults, params);
+
+    // Instance
+    var m = this;
+
+    // Params
+    m.params = params;
+
+    // Container
+    m.container = $(container);
+    if (m.container.length === 0) return;
+
+    // Textarea
+    m.textarea = m.params.textarea ? $(m.params.textarea) : m.container.find('textarea');
+
+    // Is In Page
+    m.pageContainer = m.container.parents('.page').eq(0);
+    m.pageContent = m.pageContainer.find('.page-content');
+
+    // Initial Sizes
+    m.pageContentPadding = parseInt(m.pageContent.css('padding-bottom'));
+    m.initialBarHeight = m.container[0].offsetHeight;
+    m.initialAreaHeight = m.textarea[0].offsetHeight;
+
+
+    // Resize textarea
+    m.sizeTextarea = function () {
+        // Reset
+        m.textarea.css({'height': ''});
+
+        var height = m.textarea[0].offsetHeight;
+        var diff = height - m.textarea[0].clientHeight;
+        var scrollHeight = m.textarea[0].scrollHeight;
+
+        // Update
+        if (scrollHeight + diff > height) {
+            var newAreaHeight = scrollHeight + diff;
+            var newBarHeight = m.initialBarHeight + (newAreaHeight - m.initialAreaHeight);
+            var maxBarHeight = m.params.maxHeight || m.container.parents('.view')[0].offsetHeight - 88;
+            if (newBarHeight > maxBarHeight) {
+                newBarHeight = parseInt(maxBarHeight, 10);
+                newAreaHeight = newBarHeight - m.initialBarHeight + m.initialAreaHeight;
+            }
+            m.textarea.css('height', newAreaHeight + 'px');
+            m.container.css('height', newBarHeight + 'px');
+            var onBottom = (m.pageContent[0].scrollTop === m.pageContent[0].scrollHeight - m.pageContent[0].offsetHeight);
+            if (m.pageContent.length > 0) {
+                m.pageContent.css('padding-bottom', newBarHeight + 'px');
+                if (m.pageContent.find('.messages-new-first').length === 0 && onBottom) {
+                    m.pageContent.scrollTop(m.pageContent[0].scrollHeight - m.pageContent[0].offsetHeight);
+                }
+            }
+        }
+        else {
+            if (m.pageContent.length > 0) {
+                m.container.css({'height': '', 'bottom': ''});
+                m.pageContent.css({'padding-bottom': ''});
+            }
+        }
+    };
+
+    // Clear
+    m.clear = function () {
+        m.textarea.val('').trigger('change');
+    };
+    m.value = function (value) {
+        if (typeof value === 'undefined') return m.textarea.val();
+        else m.textarea.val(value).trigger('change');
+    };
+
+    // Handle textarea
+    m.textareaTimeout = undefined;
+    m.handleTextarea = function (e) {
+        clearTimeout(m.textareaTimeout);
+        m.textareaTimeout = setTimeout(function () {
+            m.sizeTextarea();
+        }, 0);
+    };
+
+    //Events
+    function preventSubmit(e) {
+        e.preventDefault();
+    }
+
+    m.attachEvents = function (destroy) {
+        var method = destroy ? 'off' : 'on';
+        m.container[method]('submit', preventSubmit);
+        m.textarea[method]('change keydown keypress keyup paste cut', m.handleTextarea);
+    };
+    m.detachEvents = function () {
+        m.attachEvents(true);
+    };
+
+    // Init Destroy
+    m.init = function () {
+        m.attachEvents();
+    };
+    m.destroy = function () {
+        m.detachEvents();
+        m = null;
+    };
+
+    // Init
+    m.init();
+
+    m.container[0].f7Messagebar = m;
+    return m;
+};
+
+/*======================================================
+ ************   Messages   ************
+ ======================================================*/
+$.messages = function (container, params) {
+    return new Messages(container, params);
+};
+
+var Messages = function (container, params) {
+    var defaults = {
+        autoLayout: true,
+        newMessagesFirst: false
+    };
+    params = $.extend(defaults, params);
+
+    // Instance
+    var m = this;
+
+    // Params
+    m.params = params;
+
+    // template
+    m.template = function (props) {
+        var t = '';
+        if (props.day) {
+            var time = '';
+            if (props.time) {
+                time = ' <span>' + props.time + '</span>';
+            }
+            t += '<div class="messages-date">' + props.day + time + '</div>';
+        }
+
+        var messageClass = [];
+        messageClass.push('message');
+        messageClass.push('message-' + props.type);
+        props.hasImage && messageClass.push('message-pic');
+        props.avatar && messageClass.push('message-with-avatar');
+        props.position && messageClass.push('message-appear-from-' + props.position);
+        t += '<div class="' + messageClass.join(' ') + '">';
+
+        if (props.name) {
+            t += '<div class="message-name">' + props.name + '</div>';
+        }
+
+        t += '<div class="message-text">' + props.text + '</div>';
+
+        if (props.avatar) {
+            t += '<div class="message-avatar" style="background-image:url(' + props.avatar + ')"></div>';
+        }
+
+        if (props.label) {
+            t += '<div class="message-label">' + props.label + '</div>';
+        }
+
+        t += '</div>';
+        return t;
+    };
+
+    // Container
+    m.container = $(container);
+    if (m.container.length === 0) return;
+
+    // Autolayout
+    if (m.params.autoLayout) m.container.addClass('messages-auto-layout');
+
+    // New messages first
+    if (m.params.newMessagesFirst) m.container.addClass('messages-new-first');
+
+    // Is In Page
+    m.pageContainer = m.container.parents('.page').eq(0);
+    m.pageContent = m.pageContainer.find('.content');
+
+    // Auto Layout
+    m.layout = function () {
+        if (!m.container.hasClass('messages-auto-layout')) m.container.addClass('messages-auto-layout');
+        m.container.find('.message').each(function () {
+            var message = $(this);
+            if (message.find('.message-text img').length > 0) message.addClass('message-pic');
+            if (message.find('.message-avatar').length > 0) message.addClass('message-with-avatar');
+        });
+        m.container.find('.message').each(function () {
+            var message = $(this);
+            var isSent = message.hasClass('message-sent');
+            var next = message.next('.message-' + (isSent ? 'sent' : 'received'));
+            var prev = message.prev('.message-' + (isSent ? 'sent' : 'received'));
+            if (next.length === 0) {
+                message.addClass('message-last message-with-tail');
+            }
+            else message.removeClass('message-last message-with-tail');
+
+            if (prev.length === 0) {
+                message.addClass('message-first');
+            }
+            else message.removeClass('message-first');
+
+            if (prev.length > 0 && prev.find('.message-name').length > 0 && message.find('.message-name').length > 0) {
+                if (prev.find('.message-name').text() !== message.find('.message-name').text()) {
+                    prev.addClass('message-last message-with-tail');
+                    message.addClass('message-first');
+                }
+            }
+        });
+
+    };
+
+    // Add Message
+    m.appendMessage = function (props, animate) {
+        return m.addMessage(props, 'append', animate);
+    };
+    m.prependMessage = function (props, animate) {
+        return m.addMessage(props, 'prepend', animate);
+    };
+    m.addMessage = function (props, method, animate) {
+        return m.addMessages([props], method, animate);
+    };
+    m.addMessages = function (newMessages, method, animate) {
+        if (typeof animate === 'undefined') {
+            animate = false;
+        }
+        if (typeof method === 'undefined') {
+            method = m.params.newMessagesFirst ? 'prepend' : 'append';
+        }
+        var newMessagesHTML = '', i;
+        for (i = 0; i < newMessages.length; i++) {
+            var props = newMessages[i] || {};
+            props.type = props.type || 'sent';
+            if (!props.text) continue;
+            props.hasImage = props.text.indexOf('<img') >= 0;
+            if (animate) props.position = method === 'append' ? 'bottom' : 'top';
+
+            newMessagesHTML += m.template(props);
+        }
+        var heightBefore, scrollBefore;
+        if (method === 'prepend') {
+            heightBefore = m.pageContent[0].scrollHeight;
+            scrollBefore = m.pageContent[0].scrollTop;
+        }
+        m.container[method](newMessagesHTML);
+        if (m.params.autoLayout) m.layout();
+        if (method === 'prepend') {
+            m.pageContent[0].scrollTop = scrollBefore + (m.pageContent[0].scrollHeight - heightBefore);
+        }
+        if ((method === 'append' && !m.params.newMessagesFirst) || (method === 'prepend' && m.params.newMessagesFirst)) {
+            m.scrollMessages(animate ? undefined : 0);
+        }
+        var messages = m.container.find('.message');
+        if (newMessages.length === 1) {
+            return method === 'append' ? messages[messages.length - 1] : messages[0];
+        }
+        else {
+            var messagesToReturn = [];
+            if (method === 'append') {
+                for (i = messages.length - newMessages.length; i < messages.length; i++) {
+                    messagesToReturn.push(messages[i]);
+                }
+            }
+            else {
+                for (i = 0; i < newMessages.length; i++) {
+                    messagesToReturn.push(messages[i]);
+                }
+            }
+            return messagesToReturn;
+        }
+
+    };
+    m.removeMessage = function (message) {
+        message = $(message);
+        if (message.length === 0) {
+            return false;
+        }
+        else {
+            message.remove();
+            if (m.params.autoLayout) m.layout();
+            return true;
+        }
+    };
+    m.removeMessages = function (messages) {
+        m.removeMessage(messages);
+    };
+    m.clean = function () {
+        m.container.html('');
+    };
+
+    // Scroll
+    m.scrollMessages = function (duration, scrollTop) {
+        if (typeof duration === 'undefined') duration = 400;
+        var currentScroll = m.pageContent[0].scrollTop;
+        var newScroll;
+        if (typeof scrollTop !== 'undefined') newScroll = scrollTop;
+        else {
+            newScroll = m.params.newMessagesFirst ? 0 : m.pageContent[0].scrollHeight - m.pageContent[0].offsetHeight;
+            if (newScroll === currentScroll) return;
+        }
+        m.pageContent.scrollTop(newScroll, duration);
+    };
+
+    // Init Destroy
+    m.init = function () {
+        if (m.params.messages) {
+            m.addMessages(m.params.messages, undefined, false);
+        }
+        else {
+            if (m.params.autoLayout) m.layout();
+            m.scrollMessages(0);
+        }
+
+    };
+    m.destroy = function () {
+        m = null;
+    };
+
+    // Init
+    m.init();
+
+    return m;
+};
