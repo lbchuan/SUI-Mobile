@@ -270,6 +270,7 @@
             this._removeDocument(currState);
             // 重新加载当前group
             var $visibleSection = this._addDocument(currState.pageId, currState.url, this.cache[currState.url.pathname]);
+            $visibleSection.addClass(routerConfig.curPageClass);
             this._animateDocument($('<div>'), $visibleSection.parent(), $visibleSection, 'none');
         } else {
             // 加载新页面，并替换到当前页面
